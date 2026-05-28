@@ -1,0 +1,47 @@
+name: Weekly Backup
+
+on:
+  schedule:
+    - cron: '0 22 * * 0'  # каждое воскресенье в 22:00
+  workflow_dispatch:  # можно запустить вручную
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Backup from Supabase
+        run: |
+          python3 - <<'EOF'
+          import json, base64, requests
+          from datetime import datetime
+
+          SB_URL = 'https://kfalaiathjagthzmwmbx.supabase.co'
+          SB_KEY = 'sb_publishable_fZINp8bhMAS3Z0agdvm_PQ_1rltC5kl'
+
+          all_rows, offset = [], 0
+          while True:
+              r = requests.get(f'{SB_URL}/rest/v1/domofony?select=*&order=id&offset={offset}&limit=1000',
+                  headers={'apikey': SB_KEY, 'Authorization': f'Bearer {SB_KEY}'})
+              rows = r.json()
+              if not rows: break
+              all_rows.extend(rows)
+              if len(rows) < 1000: break
+              offset += 1000
+
+          filename = f"backups/backup_{datetime.now().strftime('%Y-%m-%d')}.json"
+          import os
+          os.makedirs('backups', exist_ok=True)
+          with open(filename, 'w', encoding='utf-8') as f:
+              json.dump(all_rows, f, ensure_ascii=False, indent=2)
+          print(f"Saved {len(all_rows)} rows to {filename}")
+          EOF
+
+      - name: Commit backup
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add backups/
+          git commit -m "backup $(date +%Y-%m-%d)" || echo "No changes"
+          git push
