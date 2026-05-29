@@ -2,8 +2,11 @@ name: Weekly Backup
 
 on:
   schedule:
-    - cron: '0 22 * * 0'  # каждое воскресенье в 22:00
-  workflow_dispatch:  # можно запустить вручную
+    - cron: '0 22 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   backup:
@@ -14,7 +17,7 @@ jobs:
       - name: Backup from Supabase
         run: |
           python3 - <<'EOF'
-          import json, base64, requests
+          import json, requests, os
           from datetime import datetime
 
           SB_URL = 'https://kfalaiathjagthzmwmbx.supabase.co'
@@ -30,9 +33,8 @@ jobs:
               if len(rows) < 1000: break
               offset += 1000
 
-          filename = f"backups/backup_{datetime.now().strftime('%Y-%m-%d')}.json"
-          import os
           os.makedirs('backups', exist_ok=True)
+          filename = f"backups/backup_{datetime.now().strftime('%Y-%m-%d')}.json"
           with open(filename, 'w', encoding='utf-8') as f:
               json.dump(all_rows, f, ensure_ascii=False, indent=2)
           print(f"Saved {len(all_rows)} rows to {filename}")
